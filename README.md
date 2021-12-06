@@ -19,4 +19,4 @@ https://pdos.csail.mit.edu/6.S081/2021/labs/guidance.html
 - [ ] Lab network driver
 - [ ] Lab Lock
 - [ ] Lab File system
-- [x] Lab mmap
+- [ ] Lab mmap
