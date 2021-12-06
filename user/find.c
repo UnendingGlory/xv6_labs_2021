@@ -24,8 +24,7 @@ search(char *path, char *dist)
   struct dirent de;
   char p[512];
 
-  switch (st.type)
-  {
+  switch (st.type) {
     case T_FILE:
       if (strcmp(path, dist) == 0) {
         fprintf(1, "%s/%s\n", path, dist);
