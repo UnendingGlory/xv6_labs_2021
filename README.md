@@ -10,13 +10,13 @@ https://pdos.csail.mit.edu/6.S081/2021/labs/guidance.html
 
 # xv6_labs
 
-- [] Lab Utilities
-- [] Lab System calls
-- [] Lab Page tables
-- [] Lab Traps
-- [] Lab Copy on-write
-- [] Lab Multithreading
-- [] Lab network driver
-- [] Lab Lock
-- [] Lab File system
-- [] Lab mmap
+- [ ] Lab Utilities
+- [ ] Lab System calls
+- [ ] Lab Page tables
+- [ ] Lab Traps
+- [ ] Lab Copy on-write
+- [ ] Lab Multithreading
+- [ ] Lab network driver
+- [ ] Lab Lock
+- [ ] Lab File system
+- [x] Lab mmap
