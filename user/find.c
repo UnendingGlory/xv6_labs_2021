@@ -6,7 +6,6 @@
 void
 search(char *path, char *dist)
 {
-
   struct stat st;
   int fd;
 
