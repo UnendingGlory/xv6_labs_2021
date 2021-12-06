@@ -6,7 +6,7 @@ int
 main(int argc, char *argv[])
 {
   if (argc != 2) {
-    // write into standard error
+    // write into standard error 
     fprintf(2, "Usage: sleep ticks\n");
     exit(1);
   }
