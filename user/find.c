@@ -6,10 +6,9 @@
 void
 search(char *path, char *dist)
 {
-  struct dirent de;
+
   struct stat st;
   int fd;
-  char p[512];
 
   if ((fd = open(path, 0)) < 0) {
     fprintf(2, "find: cannot open %s\n", path);
@@ -21,7 +20,10 @@ search(char *path, char *dist)
     close(fd);
     return;
   }
-  
+
+  struct dirent de;
+  char p[512];
+
   switch (st.type)
   {
     case T_FILE:
