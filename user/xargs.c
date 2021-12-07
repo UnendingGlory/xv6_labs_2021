@@ -6,7 +6,13 @@
 int 
 main(int argc, char *argv[])
 {
-  // if (argc < 2)
+  // do not care about optimization first
+  // optimization args: -n 1
+
+  if (argc < 2) {
+    fprintf(2, "xargs too few arguments!\n");
+    exit(1);
+  }
 
   char c, *params[MAXARG];  // remember to malloc for pointers
   int i;
@@ -50,15 +56,6 @@ main(int argc, char *argv[])
       ++i;
     }
   }
-  // do not care about optimization first
-
-  // fork a child process for each line
-  // if open -n 1 then sparse and break the line
-  // exec();
-
-  // if (argc < 2) {
-  //   fprintf(2, "xargs two few arg\n");
-  // }
   
   exit(0);
 }
