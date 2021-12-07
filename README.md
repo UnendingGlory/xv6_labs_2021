@@ -8,6 +8,14 @@ https://pdos.csail.mit.edu/6.S081/2021/
 # Lab Guidance
 https://pdos.csail.mit.edu/6.S081/2021/labs/guidance.html
 
+use gdb:  
+https://pdos.csail.mit.edu/6.S081/2021/lec/gdb_slides.pdf
+
+```bash
+make qemu-gdb  
+riscv64-unknown-elf-gdb (in another window)
+```
+
 # xv6_labs
 
 - [x] Lab Utilities
