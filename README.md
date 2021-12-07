@@ -10,7 +10,7 @@ https://pdos.csail.mit.edu/6.S081/2021/labs/guidance.html
 
 # xv6_labs
 
-- [ ] Lab Utilities
+- [x] Lab Utilities
 - [ ] Lab System calls
 - [ ] Lab Page tables
 - [ ] Lab Traps
