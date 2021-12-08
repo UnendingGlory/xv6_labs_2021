@@ -95,3 +95,20 @@ sys_uptime(void)
   release(&tickslock);
   return xticks;
 }
+
+// trace just simply set the process mask
+// then any syscall subsequently with the mask
+// will print info (syscall.c 153)
+uint64
+sys_trace(void)
+{
+  int mask;
+  
+  if(argint(0, &mask) < 0)  // fetch args from the trapframe
+    return -1;
+
+  // current process
+  struct proc *p = myproc();
+  p->mask = mask;
+  return 0;
+}
