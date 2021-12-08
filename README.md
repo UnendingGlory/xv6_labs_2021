@@ -13,13 +13,14 @@ https://pdos.csail.mit.edu/6.S081/2021/lec/gdb_slides.pdf
 
 ```bash
 make qemu-gdb  
-riscv64-unknown-elf-gdb (in another window)
+mac: riscv64-unknown-elf-gdb (in another window)
+windows WSL: gdb (in another window)
 ```
 
 # xv6_labs
 
 - [x] Lab Utilities
-- [ ] Lab System calls
+- [x] Lab System calls
 - [ ] Lab Page tables
 - [ ] Lab Traps
 - [ ] Lab Copy on-write
