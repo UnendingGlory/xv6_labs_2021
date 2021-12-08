@@ -6,6 +6,7 @@
 #include "memlayout.h"
 #include "spinlock.h"
 #include "proc.h"
+#include "sysinfo.h"
 
 uint64
 sys_exit(void)
@@ -110,5 +111,31 @@ sys_trace(void)
   // current process
   struct proc *p = myproc();
   p->mask = mask;
+  return 0;
+}
+
+// implement sysinfo
+// extern to get the outer functions
+extern uint64 get_free_mems(void);
+extern uint64 get_used_procs(void);
+
+uint64
+sys_info(void)
+{
+  uint64 ptr;  // address for the sys_info pointer
+  if(argaddr(0, &ptr) < 0)
+    return -1;
+  
+  struct sysinfo s;
+
+  s.freemem = get_free_mems();
+  s.nproc = get_used_procs();
+
+  // copy out data from the kernel to the user address
+  struct proc *p = myproc();
+  if (copyout(p->pagetable, ptr, (char *)&s, sizeof(struct sysinfo)) < 0) {
+    return -1;
+  }
+
   return 0;
 }

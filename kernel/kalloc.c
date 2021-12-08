@@ -80,3 +80,21 @@ kalloc(void)
     memset((char*)r, 5, PGSIZE); // fill with junk
   return (void*)r;
 }
+
+// get the number of bytes of free memory,
+uint64
+get_free_mems(void)
+{
+  // only read, no need to lock
+  uint64 free_mems = 0;
+  // kmem is free page linkedlist
+
+  struct run *r = kmem.freelist;
+  while (r) {
+    free_mems += PGSIZE;
+    r = r->next;
+  }
+
+
+  return free_mems; 
+}
