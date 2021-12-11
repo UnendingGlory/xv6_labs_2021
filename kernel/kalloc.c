@@ -15,12 +15,12 @@ extern char end[]; // first address after kernel.
                    // defined by kernel.ld.
 
 struct run {
-  struct run *next;
+  struct run *next;  // the address holds the free page
 };
 
 struct {
   struct spinlock lock;
-  struct run *freelist;
+  struct run *freelist;  // free page
 } kmem;
 
 void
@@ -34,7 +34,7 @@ void
 freerange(void *pa_start, void *pa_end)
 {
   char *p;
-  p = (char*)PGROUNDUP((uint64)pa_start);
+  p = (char*)PGROUNDUP((uint64)pa_start);  // ensure multiple of 4K: n*4096
   for(; p + PGSIZE <= (char*)pa_end; p += PGSIZE)
     kfree(p);
 }

@@ -61,8 +61,8 @@ kvminit(void)
 void
 kvminithart()
 {
-  w_satp(MAKE_SATP(kernel_pagetable));
-  sfence_vma();
+  w_satp(MAKE_SATP(kernel_pagetable));  // switch to kernel page table
+  sfence_vma();  // flush the current CPU's TLB
 }
 
 // Return the address of the PTE in page table pagetable
@@ -83,17 +83,21 @@ walk(pagetable_t pagetable, uint64 va, int alloc)
   if(va >= MAXVA)
     panic("walk");
 
+  // start search from the root level page table
   for(int level = 2; level > 0; level--) {
+    // PX get the index of the PTE in the page table
     pte_t *pte = &pagetable[PX(level, va)];
-    if(*pte & PTE_V) {
+    if(*pte & PTE_V) {  // this PTE is valid
       pagetable = (pagetable_t)PTE2PA(*pte);
     } else {
+      // if alloc is 0 or the memory can not allocate a page
       if(!alloc || (pagetable = (pde_t*)kalloc()) == 0)
         return 0;
-      memset(pagetable, 0, PGSIZE);
+      memset(pagetable, 0, PGSIZE);  // clear the page
       *pte = PA2PTE(pagetable) | PTE_V;
     }
   }
+  // 
   return &pagetable[PX(0, va)];
 }
 
@@ -137,6 +141,7 @@ kvmmap(pagetable_t kpgtbl, uint64 va, uint64 pa, uint64 sz, int perm)
 int
 mappages(pagetable_t pagetable, uint64 va, uint64 size, uint64 pa, int perm)
 {
+  // va: virtual address, pa: pyhsical address, perm: permission
   uint64 a, last;
   pte_t *pte;
 
@@ -146,11 +151,13 @@ mappages(pagetable_t pagetable, uint64 va, uint64 size, uint64 pa, int perm)
   a = PGROUNDDOWN(va);
   last = PGROUNDDOWN(va + size - 1);
   for(;;){
+    // if can not allocate the page return 0
+    // else pte stores the found PTE 
     if((pte = walk(pagetable, a, 1)) == 0)
       return -1;
     if(*pte & PTE_V)
       panic("mappages: remap");
-    *pte = PA2PTE(pa) | perm | PTE_V;
+    *pte = PA2PTE(pa) | perm | PTE_V;  // bitwise or
     if(a == last)
       break;
     a += PGSIZE;
@@ -172,7 +179,7 @@ uvmunmap(pagetable_t pagetable, uint64 va, uint64 npages, int do_free)
     panic("uvmunmap: not aligned");
 
   for(a = va; a < va + npages*PGSIZE; a += PGSIZE){
-    if((pte = walk(pagetable, a, 0)) == 0)
+    if((pte = walk(pagetable, a, 0)) == 0)  // search virtual adress a in the pagetable
       panic("uvmunmap: walk");
     if((*pte & PTE_V) == 0)
       panic("uvmunmap: not mapped");
@@ -286,9 +293,9 @@ freewalk(pagetable_t pagetable)
 void
 uvmfree(pagetable_t pagetable, uint64 sz)
 {
-  if(sz > 0)
+  if(sz > 0)  // free several sz
     uvmunmap(pagetable, 0, PGROUNDUP(sz)/PGSIZE, 1);
-  freewalk(pagetable);
+  freewalk(pagetable);  // free all
 }
 
 // Given a parent process's page table, copy
