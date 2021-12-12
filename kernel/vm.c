@@ -97,7 +97,7 @@ walk(pagetable_t pagetable, uint64 va, int alloc)
       *pte = PA2PTE(pagetable) | PTE_V;
     }
   }
-  // 
+  // return the index of the root level
   return &pagetable[PX(0, va)];
 }
 

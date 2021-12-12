@@ -75,12 +75,50 @@ sys_sleep(void)
   return 0;
 }
 
-
+// # define LAB_PGTBL
 #ifdef LAB_PGTBL
 int
 sys_pgaccess(void)
 {
   // lab pgtbl: your code here.
+  // first user page virtual address and bitmask beginning address
+  uint64 usrpgva, bitmask;
+  if (argaddr(0, &usrpgva) < 0 || argaddr(1, &bitmask) < 0)
+    return -1;
+
+  // number of pages to check
+  // max number of user pages: MAXVA / PGSIZE
+  int n;
+  if (argint(0, &n) < 0 || n > (MAXVA/PGSIZE)) {
+    return -1;
+  }
+
+  // get the current process
+  struct proc *p = myproc();
+  if (p->pagetable == 0) {  // empty pgtbl
+    return -1;
+  }
+  
+  pte_t *pte;
+  for (int i = 0; i < n; i++) {
+    pte = walk(p->pagetable, usrpgva, 0);
+
+    if (*pte & PTE_V) {
+      
+    }
+
+    usrpgva += PGSIZE;  // next pg
+  }
+
+  // printf("%p %d %p\n", usrpgva, n, bitmask);
+
+  // store the result into the address starting from bitmask
+  // needs to copy from the kernel into the user space
+
+  // if (copyout()) {
+  //   first_vn
+  // }
+
   return 0;
 }
 #endif
