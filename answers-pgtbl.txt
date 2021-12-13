@@ -16,8 +16,11 @@ Print a page table:
         (Suppose this is page 0. Its Physical Page Number is 87f6b.
          Its Physical Address is 87f6b000. Which is part of the unused memory.)
       .. .. ..1: pte 0x0000000021fda00f pa 0x0000000087f68000
-        (Suppose this is page 1. When running in user mode, the process can read/write the memory mapped by page 1.
-         But it can't change the pgtbl. Only in kernel mode, the process can modify the pgtbl.
+        (Suppose this is page 1. Its Physical Address is 87f6b000, which is higher than PHYSTOP,
+         also part of the unused memory. When running in user mode, the process cann't read/write
+         this part of the memroy. It can only read/write its own part of the memory.
+         Also it can't change the pgtbl.
+         Only in kernel mode, the process can modify the pgtbl.
          Visiting the page table is implemented by hardware mmu+tlb.
          But how the kernel refresh the pgtbl?)
       .. .. ..2: pte 0x0000000021fd9c1f pa 0x0000000087f67000
