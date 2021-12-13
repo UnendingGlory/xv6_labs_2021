@@ -13,7 +13,8 @@ Print a page table:
       ..0: pte 0x0000000021fda801 pa 0x0000000087f6a000
       .. ..0: pte 0x0000000021fda401 pa 0x0000000087f69000
       .. .. ..0: pte 0x0000000021fdac1f pa 0x0000000087f6b000
-        (Suppose this is page 0. Its Physical Page Number is 87f6b.)
+        (Suppose this is page 0. Its Physical Page Number is 87f6b.
+         Its Physical Address is 87f6b000. Which is part of the unused memory.)
       .. .. ..1: pte 0x0000000021fda00f pa 0x0000000087f68000
         (Suppose this is page 1. When running in user mode, the process can read/write the memory mapped by page 1.
          But it can't change the pgtbl. Only in kernel mode, the process can modify the pgtbl.
