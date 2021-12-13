@@ -21,7 +21,7 @@ windows WSL: gdb (in another window)
 
 - [x] Lab Utilities
 - [x] Lab System calls
-- [ ] Lab Page tables
+- [x] Lab Page tables
 - [ ] Lab Traps
 - [ ] Lab Copy on-write
 - [ ] Lab Multithreading
