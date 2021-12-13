@@ -97,7 +97,8 @@ walk(pagetable_t pagetable, uint64 va, int alloc)
       *pte = PA2PTE(pagetable) | PTE_V;
     }
   }
-  // return the index of the root level
+  // return the address of the PTE
+  // the content of the bottom level page table
   return &pagetable[PX(0, va)];
 }
 
@@ -455,10 +456,10 @@ vmprint(pagetable_t pagetable, int level)
     // if is valid
     if(pte & PTE_V){
       for (int j = 0; j < level; j++) {
-        printf(".. ");
+        printf(" ..");
       }
       uint64 child = PTE2PA(pte);
-      printf("..%d: pte %p pa %p\n", i, pte, child);
+      printf(" ..%d: pte %p pa %p\n", i, pte, child);
       vmprint((pagetable_t)child, level+1);
     }
   }
