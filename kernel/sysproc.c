@@ -75,21 +75,24 @@ sys_sleep(void)
   return 0;
 }
 
-// # define LAB_PGTBL
+// for local coding
+#ifndef LAB_PGTBL
+#define LAB_PGTBL
+#endif
+
 #ifdef LAB_PGTBL
 int
 sys_pgaccess(void)
 {
-  // lab pgtbl: your code here.
   // first user page virtual address and bitmask beginning address
   uint64 usrpgva, bitmask;
-  if (argaddr(0, &usrpgva) < 0 || argaddr(1, &bitmask) < 0)
+  if (argaddr(0, &usrpgva) < 0 || argaddr(2, &bitmask) < 0)
     return -1;
 
   // number of pages to check
   // max number of user pages: MAXVA / PGSIZE
   int n;
-  if (argint(0, &n) < 0 || n > (MAXVA/PGSIZE)) {
+  if (argint(1, &n) < 0 || n > (MAXVA/PGSIZE)) {  // 2^26
     return -1;
   }
 
@@ -99,25 +102,30 @@ sys_pgaccess(void)
     return -1;
   }
   
+  // vmprint(p->pagetable, 0);
+  // printf("Kernel: %p %d %p\n", usrpgva, n, bitmask);
+
   pte_t *pte;
+  uint32 result = 0;
+
   for (int i = 0; i < n; i++) {
     pte = walk(p->pagetable, usrpgva, 0);
+    if ((*pte & PTE_V) && (*pte & PTE_A)) {  // if accessed
 
-    if (*pte & PTE_V) {
-      
+        // printf("%d Found PTE: %p\n", i, *pte);
+
+        result |= (1 << i);  // set the correspoding bit
+        *pte ^= PTE_A;  // use XOR to clear PTE_A
     }
 
     usrpgva += PGSIZE;  // next pg
   }
 
-  // printf("%p %d %p\n", usrpgva, n, bitmask);
-
   // store the result into the address starting from bitmask
   // needs to copy from the kernel into the user space
-
-  // if (copyout()) {
-  //   first_vn
-  // }
+  if (copyout(p->pagetable, bitmask, (char *)&result, sizeof(result)) < 0) {
+    return -1;
+  }
 
   return 0;
 }
