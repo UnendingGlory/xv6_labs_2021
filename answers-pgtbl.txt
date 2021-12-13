@@ -1,0 +1,27 @@
+Speed Up system calls:
+  Question: Which other xv6 system call(s) could be made faster using this shared page? Explain how.
+
+  Answer: I think any read-only-mode syscall can be made faster by this way. Like fstat();
+
+Print a page table:
+  Question: Explain the output of vmprint in terms of Fig 3-4 from the text. What does page 0 contain? What is in page 2?
+  When running in user mode, could the process read/write the memory mapped by page 1? What does the third to last page contain?
+
+  Answer:
+    The output:
+    page table 0x0000000087f6e000
+      ..0: pte 0x0000000021fda801 pa 0x0000000087f6a000
+      .. ..0: pte 0x0000000021fda401 pa 0x0000000087f69000
+      .. .. ..0: pte 0x0000000021fdac1f pa 0x0000000087f6b000
+        (Suppose this is page 0. Its Physical Page Number is 87f6b.)
+      .. .. ..1: pte 0x0000000021fda00f pa 0x0000000087f68000
+        (Suppose this is page 1. When running in user mode, the process can read/write the memory mapped by page 1.
+         But it can't change the pgtbl. Only in kernel mode, the process can modify the pgtbl.
+         Visiting the page table is implemented by hardware mmu+tlb.
+         But how the kernel refresh the pgtbl?)
+      .. .. ..2: pte 0x0000000021fd9c1f pa 0x0000000087f67000
+      ..255: pte 0x0000000021fdb401 pa 0x0000000087f6d000
+      .. ..511: pte 0x0000000021fdb001 pa 0x0000000087f6c000
+      .. .. ..509: pte 0x0000000021fdd813 pa 0x0000000087f76000
+      .. .. ..510: pte 0x0000000021fddc07 pa 0x0000000087f77000
+      .. .. ..511: pte 0x0000000020001c0b pa 0x0000000080007000
