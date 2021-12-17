@@ -26,6 +26,7 @@ uservec:
         
 	# swap a0 and sscratch
         # so that a0 is TRAPFRAME
+        # before this line, sscratch saves the address for the TRAPFRAME
         csrrw a0, sscratch, a0
 
         # save the user registers in TRAPFRAME
@@ -102,6 +103,7 @@ userret:
         csrw sscratch, t0
 
         # restore all but a0 from TRAPFRAME
+        # a0 is the TRAPFRAME
         ld ra, 40(a0)
         ld sp, 48(a0)
         ld gp, 56(a0)
