@@ -13,8 +13,8 @@ https://pdos.csail.mit.edu/6.S081/2021/lec/gdb_slides.pdf
 
 ```bash
 make qemu-gdb  
-mac: riscv64-unknown-elf-gdb (in another window)
-windows WSL: gdb (in another window)
+mac: gdb (in another window)
+windows WSL: gdb-multiarch (in another window)
 ```
 
 # xv6_labs
