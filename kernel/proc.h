@@ -105,4 +105,9 @@ struct proc {
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
+
+  // for sys_sigalarm
+  int intervals;               // function argument
+  uint64 handler;              // function pointer
+  int ticks;                   // how many ticks has passed
 };
