@@ -121,7 +121,13 @@ found:
   p->state = USED;
   
   // how many ticks has passed
-  ticks = 0;
+  p->ticks = 0;
+  // Allocate a trapframe page for the alarm
+  if((p->trapframe0 = (struct trapframe *)kalloc()) == 0){
+    freeproc(p);
+    release(&p->lock);
+    return 0;
+  }
 
   // Allocate a trapframe page.
   if((p->trapframe = (struct trapframe *)kalloc()) == 0){
@@ -156,6 +162,10 @@ freeproc(struct proc *p)
   if(p->trapframe)
     kfree((void*)p->trapframe);
   p->trapframe = 0;
+  // free the trapframe for alarm
+  if(p->trapframe0)
+    kfree((void*)p->trapframe0);
+  p->trapframe0 = 0;
   if(p->pagetable)
     proc_freepagetable(p->pagetable, p->sz);
   p->pagetable = 0;

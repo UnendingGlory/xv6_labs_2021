@@ -78,8 +78,13 @@ usertrap(void)
 
   // give up the CPU if this is a timer interrupt.
   if(which_dev == 2) {
-    p->ticks++;  // use a CPU tick
-    // need to call the handler
+    // use a CPU tick and need to call the handler
+    if (p->intervals > 0 && ++p->ticks == p->intervals) {
+      // save the register status
+      memmove(p->trapframe0, p->trapframe, sizeof(struct trapframe));
+      // call the handler
+      p->trapframe->epc = p->handler;
+    }
     yield();
   }
 

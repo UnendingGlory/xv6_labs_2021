@@ -110,4 +110,5 @@ struct proc {
   int intervals;               // function argument
   uint64 handler;              // function pointer
   int ticks;                   // how many ticks has passed
+  struct trapframe *trapframe0; // save the trapframe for alarm
 };
