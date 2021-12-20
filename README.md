@@ -22,7 +22,7 @@ windows WSL: gdb (in another window)
 - [x] Lab Utilities
 - [x] Lab System calls
 - [x] Lab Page tables
-- [ ] Lab Traps
+- [x] Lab Traps
 - [ ] Lab Copy on-write
 - [ ] Lab Multithreading
 - [ ] Lab network driver
