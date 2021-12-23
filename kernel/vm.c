@@ -148,7 +148,8 @@ mappages(pagetable_t pagetable, uint64 va, uint64 size, uint64 pa, int perm)
   for(;;){
     if((pte = walk(pagetable, a, 1)) == 0)
       return -1;
-    if(*pte & PTE_V)
+    // COW page needs remap
+    if((*pte & PTE_V) && !(*pte & PTE_COW))
       panic("mappages: remap");
     *pte = PA2PTE(pa) | perm | PTE_V;
     if(a == last)
@@ -303,8 +304,9 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
   pte_t *pte;
   uint64 pa, i;
   uint flags;
-  char *mem;
+  // char *mem;
 
+  // copy all parent va
   for(i = 0; i < sz; i += PGSIZE){
     if((pte = walk(old, i, 0)) == 0)
       panic("uvmcopy: pte should exist");
@@ -312,19 +314,28 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
       panic("uvmcopy: page not present");
     pa = PTE2PA(*pte);
     flags = PTE_FLAGS(*pte);
-    if((mem = kalloc()) == 0)
-      goto err;
-    memmove(mem, (char*)pa, PGSIZE);
-    if(mappages(new, i, PGSIZE, (uint64)mem, flags) != 0){
-      kfree(mem);
-      goto err;
+
+    *pte &= ~PTE_W;  // clear parent PTE_W
+    *pte |= PTE_COW; // set it as a COW page
+    flags &= ~PTE_W;   // clear child PTE_W
+    flags |= PTE_COW;  // set it as a COW page
+
+    // if((mem = kalloc()) == 0) // allocate a page
+    //   goto err;
+    // memmove(mem, (char*)pa, PGSIZE);
+
+    if(mappages(new, i, PGSIZE, (uint64)pa, flags) == 0){ // if success
+      // incre the page reference here
+      kpgref((void *)pa);
+    } else {
+      return -1;
     }
   }
   return 0;
 
- err:
-  uvmunmap(new, 0, i / PGSIZE, 1);
-  return -1;
+//  err:
+//   uvmunmap(new, 0, i / PGSIZE, 1);
+//   return -1;
 }
 
 // mark a PTE invalid for user access.
@@ -343,6 +354,10 @@ uvmclear(pagetable_t pagetable, uint64 va)
 // Copy from kernel to user.
 // Copy len bytes from src to virtual address dstva in a given page table.
 // Return 0 on success, -1 on error.
+
+// TODO: use the same scheme as page faults when it encounters a COW page
+// need to record whether it is a COW mapping for each PTE
+// can use the RSW (reserved for software) bits in the RISC-V PTE for this
 int
 copyout(pagetable_t pagetable, uint64 dstva, char *src, uint64 len)
 {

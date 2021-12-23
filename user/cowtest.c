@@ -13,18 +13,18 @@ void
 simpletest()
 {
   uint64 phys_size = PHYSTOP - KERNBASE;
-  int sz = (phys_size / 3) * 2;
+  int sz = (phys_size / 3) * 2;  // 2/3 phys memory
 
   printf("simple: ");
   
   char *p = sbrk(sz);
-  if(p == (char*)0xffffffffffffffffL){
+  if(p == (char*)0xffffffffffffffffL){ // if memory is not enough
     printf("sbrk(%d) failed\n", sz);
     exit(-1);
   }
 
   for(char *q = p; q < p + sz; q += 4096){
-    *(int*)q = getpid();
+    *(int*)q = getpid(); // store pid in each page
   }
 
   int pid = fork();

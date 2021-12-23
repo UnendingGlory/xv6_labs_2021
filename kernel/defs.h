@@ -60,6 +60,7 @@ void            ramdiskintr(void);
 void            ramdiskrw(struct buf*);
 
 // kalloc.c
+void            kpgref(void *); // Increase page reference
 void*           kalloc(void);
 void            kfree(void *);
 void            kinit(void);
