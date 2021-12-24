@@ -33,8 +33,6 @@ trapinithart(void)
 // handle an interrupt, exception, or system call from user space.
 // called from trampoline.S
 //
-// TODO: recognize page faults
-// If a COW page fault occurs and there's no free memory, the process should be killed
 void
 usertrap(void)
 {
@@ -67,28 +65,34 @@ usertrap(void)
     intr_on();
 
     syscall();
-  } else if (r_scause() == 15) { // page fault
-    uint64 va = r_stval(); // supervisor trap value
+  } else if (r_scause() == 15) {
+    uint64 va = r_stval();
 
-    uint64 old_pa;
-    if ((old_pa = walkaddr(p->pagetable, va)) == 0) { // not mapped
+    if (va <= 0 || va >= MAXVA) { // in user space
       p->killed = 1;
-    } else {
-      uint64 new_pa = (uint64)kalloc(); // allocate a new page
-      if (new_pa == 0) {
-        p->killed = 1; 
-      } else {
-        // map the va to the new page
-        memmove((void*)new_pa, (char*)old_pa, PGSIZE);
-        // better not to free the old_page, may has other references
-        // kfree((void *)old_pa);
-        if (mappages(p->pagetable, va, PGSIZE, new_pa, PTE_R|PTE_W|PTE_X|PTE_U|PTE_COW) != 0) {
-          kfree((void *)new_pa);
-          p->killed = 1;
-        }
-      }
+      goto err;
     }
-    // return to the original instruction
+
+    pte_t *pte = walk(p->pagetable, va, 0);
+    if ((*pte & PTE_V) == 0 || (*pte & PTE_COW) == 0) { // need check COW here
+      p->killed = 1;
+      goto err;
+    }
+
+    uint64 new_pa;
+    if ((new_pa = (uint64)kalloc()) == 0) {
+      p->killed = 1;
+      goto err;
+    }
+
+    uint64 old_pa = PTE2PA(*pte);
+    memmove((void *)new_pa, (void *)old_pa, PGSIZE);
+    kfree((void *)old_pa);  // decrease the pa
+    // enable write for the new page, not a COW page
+    *pte = PA2PTE(new_pa) | PTE_V | PTE_U | PTE_W | PTE_R | PTE_X;
+
+    // can also use mappages here, but need to unmap first
+    // need to solve remap panic
   } else if((which_dev = devintr()) != 0){
     // ok
   } else {
@@ -97,6 +101,7 @@ usertrap(void)
     p->killed = 1;
   }
 
+err:
   if(p->killed)
     exit(-1);
 

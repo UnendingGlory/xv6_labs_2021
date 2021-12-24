@@ -148,8 +148,7 @@ mappages(pagetable_t pagetable, uint64 va, uint64 size, uint64 pa, int perm)
   for(;;){
     if((pte = walk(pagetable, a, 1)) == 0)
       return -1;
-    // COW page needs remap
-    if((*pte & PTE_V) && !(*pte & PTE_COW))
+    if(*pte & PTE_V)
       panic("mappages: remap");
     *pte = PA2PTE(pa) | perm | PTE_V;
     if(a == last)
@@ -304,9 +303,7 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
   pte_t *pte;
   uint64 pa, i;
   uint flags;
-  // char *mem;
 
-  // copy all parent va
   for(i = 0; i < sz; i += PGSIZE){
     if((pte = walk(old, i, 0)) == 0)
       panic("uvmcopy: pte should exist");
@@ -320,22 +317,14 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
     flags &= ~PTE_W;   // clear child PTE_W
     flags |= PTE_COW;  // set it as a COW page
 
-    // if((mem = kalloc()) == 0) // allocate a page
-    //   goto err;
-    // memmove(mem, (char*)pa, PGSIZE);
-
-    if(mappages(new, i, PGSIZE, (uint64)pa, flags) == 0){ // if success
-      // incre the page reference here
-      kpgref((void *)pa);
-    } else {
+    if (mappages(new, i, PGSIZE, pa, flags) != 0) {
+      kfree((void*)pa);
       return -1;
+    } else {
+      kincref((void*)pa); // increase the page reference if map works
     }
   }
   return 0;
-
-//  err:
-//   uvmunmap(new, 0, i / PGSIZE, 1);
-//   return -1;
 }
 
 // mark a PTE invalid for user access.
@@ -354,10 +343,6 @@ uvmclear(pagetable_t pagetable, uint64 va)
 // Copy from kernel to user.
 // Copy len bytes from src to virtual address dstva in a given page table.
 // Return 0 on success, -1 on error.
-
-// TODO: use the same scheme as page faults when it encounters a COW page
-// need to record whether it is a COW mapping for each PTE
-// can use the RSW (reserved for software) bits in the RISC-V PTE for this
 int
 copyout(pagetable_t pagetable, uint64 dstva, char *src, uint64 len)
 {
@@ -365,6 +350,30 @@ copyout(pagetable_t pagetable, uint64 dstva, char *src, uint64 len)
 
   while(len > 0){
     va0 = PGROUNDDOWN(dstva);
+
+    if (va0 >= MAXVA) {
+      return -1;
+    }
+    pte_t *pte = walk(pagetable, va0, 0);
+    if (pte == 0) {
+      return -1;
+    }
+
+    // copyout run in the kernel
+    // directly check the COW flag
+    if (*pte & PTE_COW) { 
+      uint64 new_pa;
+      if ((new_pa = (uint64)kalloc()) == 0) {
+        return -1;
+      }
+
+      uint64 old_pa = PTE2PA(*pte);
+      memmove((void *)new_pa, (void *)old_pa, PGSIZE);
+      kfree((void *)old_pa);  // decrease the pa
+      // enable write for the new page, not a COW page
+      *pte = PA2PTE(new_pa) | PTE_V | PTE_U | PTE_W | PTE_R | PTE_X;
+    }
+   
     pa0 = walkaddr(pagetable, va0);
     if(pa0 == 0)
       return -1;

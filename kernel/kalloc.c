@@ -14,22 +14,44 @@ void freerange(void *pa_start, void *pa_end);
 extern char end[]; // first address after kernel.
                    // defined by kernel.ld.
 
-// add a reference for each pyhsical page
-int pgref[PHYSTOP / PGSIZE];
-
 struct run {
   struct run *next;
 };
+
+// for page reference
+int pgref[(PHYSTOP - KERNBASE) / PGSIZE];
+struct spinlock pglock;
 
 struct {
   struct spinlock lock;
   struct run *freelist;
 } kmem;
 
+// increase the page reference
+void kincref(void*pa) {
+  acquire(&pglock);
+  pgref[((uint64)pa - KERNBASE) / PGSIZE]++;
+  release(&pglock);
+}
+
+// decrease the page reference
+int kdecref(void *pa) {
+  acquire(&pglock);
+  int index = ((uint64)pa - KERNBASE) / PGSIZE;
+  pgref[index]--;
+  int ret = pgref[index];
+  release(&pglock);
+  return ret;
+}
+
 void
 kinit()
 {
   initlock(&kmem.lock, "kmem");
+  initlock(&pglock, "pagelock");
+  for (int i = 0; i < (PHYSTOP - KERNBASE) / PGSIZE; i++) {
+    pgref[i] = 1;
+  }
   freerange(end, (void*)PHYSTOP);
 }
 
@@ -40,18 +62,6 @@ freerange(void *pa_start, void *pa_end)
   p = (char*)PGROUNDUP((uint64)pa_start);
   for(; p + PGSIZE <= (char*)pa_end; p += PGSIZE)
     kfree(p);
-}
-
-// Increase the page reference
-void
-kpgref(void *pa)
-{
-  int pg_idx = (uint64)pa / PGSIZE;
-  if (pg_idx >= 0 && pg_idx < (PHYSTOP/PGSIZE) && pgref[pg_idx] > 0) {
-    ++pgref[pg_idx];
-  } else {
-    panic("kpgref page ref error\n");
-  }
 }
 
 // Free the page of physical memory pointed at by v,
@@ -66,22 +76,9 @@ kfree(void *pa)
   if(((uint64)pa % PGSIZE) != 0 || (char*)pa < end || (uint64)pa >= PHYSTOP)
     panic("kfree");
 
-  // TODO: decrease the pgref
-  // only free it when the ref is 0
-  int pg_idx = (uint64)pa / PGSIZE;
-  if (pgref[pg_idx] <= 0) {
-    printf("%d\n", pgref[pg_idx]);
-    panic("kfree page ref error\n");
-  }
-  if (pg_idx >= 0 && pg_idx < (PHYSTOP/PGSIZE) && pgref[pg_idx] > 0) {
-    --pgref[pg_idx];
-  } else {
-    printf("%d\n", pg_idx);
-    panic("kfree page ref error\n");
-  }
-
-  if (pgref[pg_idx] > 0) // if page is still available
+  if (kdecref(pa) > 0) { // if still has reference
     return;
+  }
 
   // Fill with junk to catch dangling refs.
   memset(pa, 1, PGSIZE);
@@ -102,17 +99,13 @@ kalloc(void)
 {
   struct run *r;
 
+  acquire(&kmem.lock);
   r = kmem.freelist;
-  if(r) { // first free page
+  if(r) {
+    kincref((void*)r);
     kmem.freelist = r->next;
-    uint64 pa = (uint64)r;
-    int pg_idx = pa / PGSIZE;
-    if (pg_idx >= 0 && pg_idx < (PHYSTOP/PGSIZE)) {
-      pgref[pg_idx] = 1;
-    } else {
-      panic("kalloc page ref error\n");
-    }
   }
+  release(&kmem.lock);
 
   if(r)
     memset((char*)r, 5, PGSIZE); // fill with junk

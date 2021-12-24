@@ -26,8 +26,8 @@ simpletest()
   for(char *q = p; q < p + sz; q += 4096){
     *(int*)q = getpid(); // store pid in each page
   }
-
-  int pid = fork();
+  
+  int pid = fork(); // calls uvmcopy
   if(pid < 0){
     printf("fork() failed\n");
     exit(-1);
@@ -132,7 +132,7 @@ filetest()
   buf[0] = 99;
 
   for(int i = 0; i < 4; i++){
-    if(pipe(fds) != 0){
+    if(pipe(fds) != 0){  // pipe calls copyout here
       printf("pipe() failed\n");
       exit(-1);
     }
