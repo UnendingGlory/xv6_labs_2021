@@ -23,7 +23,7 @@ windows WSL: gdb-multiarch (in another window)
 - [x] Lab System calls
 - [x] Lab Page tables
 - [x] Lab Traps
-- [ ] Lab Copy on-write
+- [x] Lab Copy on-write
 - [ ] Lab Multithreading
 - [ ] Lab network driver
 - [ ] Lab Lock
