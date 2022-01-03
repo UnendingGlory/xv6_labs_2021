@@ -445,6 +445,7 @@ scheduler(void)
     // Avoid deadlock by ensuring that devices can interrupt.
     intr_on();
 
+    // looking for a runnable process
     for(p = proc; p < &proc[NPROC]; p++) {
       acquire(&p->lock);
       if(p->state == RUNNABLE) {
@@ -483,11 +484,11 @@ sched(void)
     panic("sched locks");
   if(p->state == RUNNING)
     panic("sched running");
-  if(intr_get())
+  if(intr_get())  // close interrupt
     panic("sched interruptible");
 
   intena = mycpu()->intena;
-  swtch(&p->context, &mycpu()->context);
+  swtch(&p->context, &mycpu()->context);  // save the current context
   mycpu()->intena = intena;
 }
 
@@ -496,9 +497,9 @@ void
 yield(void)
 {
   struct proc *p = myproc();
-  acquire(&p->lock);
+  acquire(&p->lock);  // must get the lock
   p->state = RUNNABLE;
-  sched();
+  sched();            // then call schedule
   release(&p->lock);
 }
 
