@@ -79,7 +79,7 @@ pipewrite(struct pipe *pi, uint64 addr, int n)
   int i = 0;
   struct proc *pr = myproc();
 
-  acquire(&pi->lock);
+  acquire(&pi->lock); // pipe's lock
   while(i < n){
     if(pi->readopen == 0 || pr->killed){
       release(&pi->lock);

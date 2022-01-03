@@ -538,14 +538,15 @@ sleep(void *chan, struct spinlock *lk)
   // (wakeup locks p->lock),
   // so it's okay to release lk.
 
+  // p->lock is the process lock
   acquire(&p->lock);  //DOC: sleeplock1
-  release(lk);
+  release(lk); // the PV lock
 
   // Go to sleep.
   p->chan = chan;
   p->state = SLEEPING;
 
-  sched();
+  sched(); // give up the cpu to the scheduler
 
   // Tidy up.
   p->chan = 0;
@@ -562,6 +563,7 @@ wakeup(void *chan)
 {
   struct proc *p;
 
+  // look for a process sleeping on the wait channel
   for(p = proc; p < &proc[NPROC]; p++) {
     if(p != myproc()){
       acquire(&p->lock);
