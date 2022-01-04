@@ -31,6 +31,7 @@ thread_init(void)
   current_thread->state = RUNNING;
 }
 
+// TODO:
 void 
 thread_schedule(void)
 {
@@ -66,6 +67,7 @@ thread_schedule(void)
     next_thread = 0;
 }
 
+// TODO: 
 void 
 thread_create(void (*func)())
 {
