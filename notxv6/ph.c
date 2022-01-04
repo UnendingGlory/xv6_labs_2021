@@ -13,7 +13,8 @@ struct entry {
   int value;
   struct entry *next;
 };
-struct entry *table[NBUCKET];
+struct entry *table[NBUCKET]; // linked hash table
+pthread_mutex_t locks[NBUCKET]; // lock for per bucket
 int keys[NKEYS];
 int nthread = 1;
 
@@ -38,9 +39,9 @@ insert(int key, int value, struct entry **p, struct entry *n)
 
 static 
 void put(int key, int value)
-{
-  int i = key % NBUCKET;
-
+{ 
+  int i = key % NBUCKET; // different i for each put on the stack
+  pthread_mutex_lock(&locks[i]);
   // is the key already present?
   struct entry *e = 0;
   for (e = table[i]; e != 0; e = e->next) {
@@ -54,7 +55,7 @@ void put(int key, int value)
     // the new is new.
     insert(key, value, &table[i], table[i]);
   }
-
+  pthread_mutex_unlock(&locks[i]);
 }
 
 static struct entry*
@@ -77,7 +78,7 @@ put_thread(void *xa)
   int n = (int) (long) xa; // thread number
   int b = NKEYS/nthread;
 
-  for (int i = 0; i < b; i++) {
+  for (int i = 0; i < b; i++) { // the thread's batch
     put(keys[b*n + i], n);
   }
 
@@ -92,7 +93,7 @@ get_thread(void *xa)
 
   for (int i = 0; i < NKEYS; i++) {
     struct entry *e = get(keys[i]);
-    if (e == 0) missing++;
+    if (e == 0) missing++; // no key in this bucket
   }
   printf("%d: %d keys missing\n", n, missing);
   return NULL;
@@ -112,6 +113,10 @@ main(int argc, char *argv[])
   }
   nthread = atoi(argv[1]);
   tha = malloc(sizeof(pthread_t) * nthread);
+  for (int i = 0; i < NBUCKET; ++i) {
+    pthread_mutex_init(&locks[i], NULL);
+  }
+
   srandom(0);
   assert(NKEYS % nthread == 0);
   for (int i = 0; i < NKEYS; i++) {
