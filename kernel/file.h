@@ -14,17 +14,18 @@ struct file {
 #define	mkdev(m,n)  ((uint)((m)<<16| (n)))
 
 // in-memory copy of an inode
+// active i-nodes in memory
 struct inode {
   uint dev;           // Device number
   uint inum;          // Inode number
-  int ref;            // Reference count
+  int ref;            // Reference count, number of pointers to this inode
   struct sleeplock lock; // protects everything below here
   int valid;          // inode has been read from disk?
 
   short type;         // copy of disk inode
   short major;
   short minor;
-  short nlink;
+  short nlink;        // Number of links to inode in file system
   uint size;
   uint addrs[NDIRECT+1];
 };

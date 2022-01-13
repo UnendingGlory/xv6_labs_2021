@@ -69,9 +69,11 @@ balloc(uint dev)
 
   bp = 0;
   for(b = 0; b < sb.size; b += BPB){
+    // bitmap block for each block
     bp = bread(dev, BBLOCK(b, sb));
+    // each bitmap bit for the corresponding block
     for(bi = 0; bi < BPB && b + bi < sb.size; bi++){
-      m = 1 << (bi % 8);
+      m = 1 << (bi % 8); // 1 << (0 ~ 7)
       if((bp->data[bi/8] & m) == 0){  // Is block free?
         bp->data[bi/8] |= m;  // Mark block in use.
         log_write(bp);
@@ -296,7 +298,7 @@ ilock(struct inode *ip)
 
   acquiresleep(&ip->lock);
 
-  if(ip->valid == 0){
+  if(ip->valid == 0){ // read from the disk
     bp = bread(ip->dev, IBLOCK(ip->inum, sb));
     dip = (struct dinode*)bp->data + ip->inum%IPB;
     ip->type = dip->type;
@@ -380,7 +382,7 @@ bmap(struct inode *ip, uint bn)
   uint addr, *a;
   struct buf *bp;
 
-  if(bn < NDIRECT){
+  if(bn < NDIRECT){ // direct blocks
     if((addr = ip->addrs[bn]) == 0)
       ip->addrs[bn] = addr = balloc(ip->dev);
     return addr;
@@ -391,9 +393,9 @@ bmap(struct inode *ip, uint bn)
     // Load indirect block, allocating if necessary.
     if((addr = ip->addrs[NDIRECT]) == 0)
       ip->addrs[NDIRECT] = addr = balloc(ip->dev);
-    bp = bread(ip->dev, addr);
-    a = (uint*)bp->data;
-    if((addr = a[bn]) == 0){
+    bp = bread(ip->dev, addr); // read the block
+    a = (uint*)bp->data; 
+    if((addr = a[bn]) == 0){  // read the block number from a right position
       a[bn] = addr = balloc(ip->dev);
       log_write(bp);
     }
@@ -413,14 +415,14 @@ itrunc(struct inode *ip)
   struct buf *bp;
   uint *a;
 
-  for(i = 0; i < NDIRECT; i++){
+  for(i = 0; i < NDIRECT; i++){ // free the direct blocks
     if(ip->addrs[i]){
       bfree(ip->dev, ip->addrs[i]);
       ip->addrs[i] = 0;
     }
   }
 
-  if(ip->addrs[NDIRECT]){
+  if(ip->addrs[NDIRECT]){ // indirect blocks
     bp = bread(ip->dev, ip->addrs[NDIRECT]);
     a = (uint*)bp->data;
     for(j = 0; j < NINDIRECT; j++){
@@ -458,7 +460,7 @@ readi(struct inode *ip, int user_dst, uint64 dst, uint off, uint n)
   uint tot, m;
   struct buf *bp;
 
-  if(off > ip->size || off + n < off)
+  if(off > ip->size || off + n < off) // go beyond the file size or fewer bytes than requested
     return 0;
   if(off + n > ip->size)
     n = ip->size - off;
@@ -630,7 +632,7 @@ namex(char *path, int nameiparent, char *name)
 {
   struct inode *ip, *next;
 
-  if(*path == '/')
+  if(*path == '/') // begins with a slash
     ip = iget(ROOTDEV, ROOTINO);
   else
     ip = idup(myproc()->cwd);
@@ -641,6 +643,8 @@ namex(char *path, int nameiparent, char *name)
       iunlockput(ip);
       return 0;
     }
+    
+    // the last path element
     if(nameiparent && *path == '\0'){
       // Stop one level early.
       iunlock(ip);
