@@ -17,7 +17,7 @@ struct devsw devsw[NDEV];
 struct {
   struct spinlock lock;
   struct file file[NFILE];
-} ftable;
+} ftable; // all the open files in the system
 
 void
 fileinit(void)
@@ -68,6 +68,7 @@ fileclose(struct file *f)
     release(&ftable.lock);
     return;
   }
+  // f->ref = 0
   ff = *f;
   f->ref = 0;
   f->type = FD_NONE;

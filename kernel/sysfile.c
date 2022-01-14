@@ -141,7 +141,8 @@ sys_link(void)
   ip->nlink++;
   iupdate(ip);
   iunlock(ip);
-
+  
+  // find the parent directory
   if((dp = nameiparent(new, name)) == 0)
     goto bad;
   ilock(dp);
@@ -249,6 +250,7 @@ create(char *path, short type, short major, short minor)
 
   ilock(dp);
 
+  // whether the name already exists
   if((ip = dirlookup(dp, name, 0)) != 0){
     iunlockput(dp);
     ilock(ip);

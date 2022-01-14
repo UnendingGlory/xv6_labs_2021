@@ -45,7 +45,7 @@ struct dinode {
 #define IBLOCK(i, sb)     ((i) / IPB + sb.inodestart)
 
 // Bitmap bits per block
-#define BPB           (BSIZE*8)
+#define BPB           (BSIZE*8) // 1024 bytes = 1024*8 bits
 
 // Block of free map containing bit for block b
 #define BBLOCK(b, sb) ((b)/BPB + sb.bmapstart)
