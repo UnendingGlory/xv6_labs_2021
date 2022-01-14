@@ -8,10 +8,14 @@
 #include "e1000_dev.h"
 #include "net.h"
 
+// transmit
 #define TX_RING_SIZE 16
-static struct tx_desc tx_ring[TX_RING_SIZE] __attribute__((aligned(16)));
-static struct mbuf *tx_mbufs[TX_RING_SIZE];
+// ring buffer
+static struct tx_desc tx_ring[TX_RING_SIZE] __attribute__((aligned(16))); // descriptor
+// each descriptor contains an address in RAM where the E1000 can write
+static struct mbuf *tx_mbufs[TX_RING_SIZE];  // for os software
 
+// receive
 #define RX_RING_SIZE 16
 static struct rx_desc rx_ring[RX_RING_SIZE] __attribute__((aligned(16)));
 static struct mbuf *rx_mbufs[RX_RING_SIZE];
@@ -20,6 +24,7 @@ static struct mbuf *rx_mbufs[RX_RING_SIZE];
 static volatile uint32 *regs;
 
 struct spinlock e1000_lock;
+struct spinlock rev_lock;
 
 // called by pci_init().
 // xregs is the memory address at which the
@@ -30,6 +35,7 @@ e1000_init(uint32 *xregs)
   int i;
 
   initlock(&e1000_lock, "e1000");
+  initlock(&rev_lock, "e1000_rev");
 
   regs = xregs;
 
@@ -37,7 +43,7 @@ e1000_init(uint32 *xregs)
   regs[E1000_IMS] = 0; // disable interrupts
   regs[E1000_CTL] |= E1000_CTL_RST;
   regs[E1000_IMS] = 0; // redisable interrupts
-  __sync_synchronize();
+  __sync_synchronize(); // tell the compiler and CPU not to reorder loads and stores
 
   // [E1000 14.5] Transmit initialization
   memset(tx_ring, 0, sizeof(tx_ring));
@@ -92,6 +98,8 @@ e1000_init(uint32 *xregs)
   regs[E1000_IMS] = (1 << 7); // RXDW -- Receiver Descriptor Write Back
 }
 
+// top half, bufs for read or write
+// mbuf that holds the packet to be sent
 int
 e1000_transmit(struct mbuf *m)
 {
@@ -102,10 +110,34 @@ e1000_transmit(struct mbuf *m)
   // the TX descriptor ring so that the e1000 sends it. Stash
   // a pointer so that it can be freed after sending.
   //
+  acquire(&e1000_lock);
+  int tx_tail = regs[E1000_TDT];
   
+  if (!(tx_ring[tx_tail].status & E1000_TXD_STAT_DD)) { // Descriptor not done
+    release(&e1000_lock);
+    return -1;
+  }
+
+  if (tx_mbufs[tx_tail]) { // free this buf first
+    mbuffree(tx_mbufs[tx_tail]);
+  }
+
+  // fill the mbuf
+  tx_mbufs[tx_tail] = m;
+  
+  // fill the descriptors
+  tx_ring[tx_tail].addr = (uint64)m->head;
+  tx_ring[tx_tail].length = m->len;
+  tx_ring[tx_tail].cmd = E1000_TXD_CMD_EOP | E1000_TXD_CMD_RS;
+
+  // update the right position
+  regs[E1000_TDT] = (tx_tail + 1) % TX_RING_SIZE;
+  release(&e1000_lock);
+
   return 0;
 }
 
+// bottom half, handle the interrupt, interact with the e1000 device
 static void
 e1000_recv(void)
 {
@@ -115,6 +147,28 @@ e1000_recv(void)
   // Check for packets that have arrived from the e1000
   // Create and deliver an mbuf for each packet (using net_rx()).
   //
+  acquire(&rev_lock);
+  while(1) {
+    int rx_tail = (regs[E1000_RDT] + 1) % RX_RING_SIZE;
+    if (!(rx_ring[rx_tail].status & E1000_RXD_STAT_DD)) { // Descriptor not done
+      release(&rev_lock);
+      return;
+    }
+
+    rx_mbufs[rx_tail]->len = rx_ring[rx_tail].length;
+
+    // net_rx -> net_rx_arp -> net_tx_arp -> 
+    // net_tx_eth -> e1000_transmit
+    net_rx(rx_mbufs[rx_tail]);  // deliver a packet to the networking stack
+    rx_mbufs[rx_tail] = mbufalloc(0);
+
+    // fill the descriptor
+    rx_ring[rx_tail].addr = (uint64)rx_mbufs[rx_tail]->head;
+    rx_ring[rx_tail].status = 0;
+    
+    regs[E1000_RDT] = rx_tail; // update the tail position
+  }
+  release(&rev_lock);
 }
 
 void

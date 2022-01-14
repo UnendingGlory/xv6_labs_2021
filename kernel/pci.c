@@ -23,6 +23,7 @@ pci_init()
   uint32  *ecam = (uint32 *) 0x30000000L;
   
   // look at each possible PCI device on bus 0.
+  //  searches for an E1000 card
   for(int dev = 0; dev < 32; dev++){
     int bus = 0;
     int func = 0;
