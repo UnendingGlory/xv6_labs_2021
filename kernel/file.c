@@ -141,11 +141,11 @@ filewrite(struct file *f, uint64 addr, int n)
 
   if(f->type == FD_PIPE){
     ret = pipewrite(f->pipe, addr, n);
-  } else if(f->type == FD_DEVICE){
+  } else if (f->type == FD_DEVICE) { // device
     if(f->major < 0 || f->major >= NDEV || !devsw[f->major].write)
       return -1;
     ret = devsw[f->major].write(1, addr, n);
-  } else if(f->type == FD_INODE){
+  } else if (f->type == FD_INODE) {
     // write a few blocks at a time to avoid exceeding
     // the maximum log transaction size, including
     // i-node, indirect block, allocation blocks,
@@ -154,7 +154,7 @@ filewrite(struct file *f, uint64 addr, int n)
     // might be writing a device like the console.
     int max = ((MAXOPBLOCKS-1-1-2) / 2) * BSIZE;
     int i = 0;
-    while(i < n){
+    while (i < n) { // break up large writes into individual transaction
       int n1 = n - i;
       if(n1 > max)
         n1 = max;

@@ -109,7 +109,7 @@ write_head(void)
   for (i = 0; i < log.lh.n; i++) {
     hb->block[i] = log.lh.block[i];
   }
-  bwrite(buf);
+  bwrite(buf);  // <- commit point
   brelse(buf);
 }
 
@@ -127,10 +127,10 @@ void
 begin_op(void)
 {
   acquire(&log.lock);
-  while(1){
-    if(log.committing){
+  while(1){ // wait until the logging system is committing
+    if (log.committing) {
       sleep(&log, &log.lock);
-    } else if(log.lh.n + (log.outstanding+1)*MAXOPBLOCKS > LOGSIZE){
+    } else if (log.lh.n + (log.outstanding+1)*MAXOPBLOCKS > LOGSIZE){
       // this op might exhaust log space; wait for commit.
       sleep(&log, &log.lock);
     } else {
@@ -152,7 +152,7 @@ end_op(void)
   log.outstanding -= 1;
   if(log.committing)
     panic("log.committing");
-  if(log.outstanding == 0){
+  if(log.outstanding == 0){ // no system call is executing
     do_commit = 1;
     log.committing = 1;
   } else {
@@ -226,9 +226,9 @@ log_write(struct buf *b)
     if (log.lh.block[i] == b->blockno)   // log absorption
       break;
   }
-  log.lh.block[i] = b->blockno;
+  log.lh.block[i] = b->blockno; // log this block
   if (i == log.lh.n) {  // Add new block to log?
-    bpin(b);
+    bpin(b); // pin means add refcnt to the block
     log.lh.n++;
   }
   release(&log.lock);

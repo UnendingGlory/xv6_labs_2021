@@ -22,9 +22,9 @@ void
 acquiresleep(struct sleeplock *lk)
 {
   acquire(&lk->lk);
-  while (lk->locked) {
-    sleep(lk, &lk->lk);
-  }
+  while (lk->locked) {  // if the lock is held
+    sleep(lk, &lk->lk); // sleep and give up the cpu
+  }                     // because long time operation is not situable for spinlock
   lk->locked = 1;
   lk->pid = myproc()->pid;
   release(&lk->lk);
