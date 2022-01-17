@@ -21,12 +21,16 @@ struct run {
 struct {
   struct spinlock lock;
   struct run *freelist;
-} kmem;
+} kmem[NCPU];
 
 void
 kinit()
 {
-  initlock(&kmem.lock, "kmem");
+  for (int i = 0; i < NCPU; ++i) {
+    initlock(&kmem[i].lock, "kmem");
+  }
+  // the first cpu calls the kinit and freerange
+  // so it gets all the memory after initializing
   freerange(end, (void*)PHYSTOP);
 }
 
@@ -56,10 +60,16 @@ kfree(void *pa)
 
   r = (struct run*)pa;
 
-  acquire(&kmem.lock);
-  r->next = kmem.freelist;
-  kmem.freelist = r;
-  release(&kmem.lock);
+  // get current cpu
+  push_off();
+  int ccpu = cpuid();
+  pop_off();
+  // printf("%d\n", ccpu);
+
+  acquire(&kmem[ccpu].lock);
+  r->next = kmem[ccpu].freelist;
+  kmem[ccpu].freelist = r;
+  release(&kmem[ccpu].lock);
 }
 
 // Allocate one 4096-byte page of physical memory.
@@ -70,11 +80,31 @@ kalloc(void)
 {
   struct run *r;
 
-  acquire(&kmem.lock);
-  r = kmem.freelist;
-  if(r)
-    kmem.freelist = r->next;
-  release(&kmem.lock);
+  push_off();
+  int ccpu = cpuid();
+  pop_off();
+
+  acquire(&kmem[ccpu].lock);
+  r = kmem[ccpu].freelist;
+  if(r) {
+    kmem[ccpu].freelist = r->next;
+  }
+  else { // if no free node, needs to steal from another cpu
+    for (int i = 0; i < NCPU; ++i) { // always steal from the first (maybe not good)
+      if (i == ccpu) {
+        continue;
+      }
+      acquire(&kmem[i].lock);
+      if (kmem[i].freelist) { // has free space
+        r = kmem[i].freelist; // return this free list
+        kmem[i].freelist = r->next; // update the list
+        release(&kmem[i].lock);
+        break;
+      }
+      release(&kmem[i].lock);
+    }
+  }
+  release(&kmem[ccpu].lock);
 
   if(r)
     memset((char*)r, 5, PGSIZE); // fill with junk
