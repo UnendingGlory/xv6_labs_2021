@@ -380,24 +380,55 @@ bmap(struct inode *ip, uint bn)
   uint addr, *a;
   struct buf *bp;
 
-  if(bn < NDIRECT){
+  if (bn < NDIRECT) { // direct disk block address
     if((addr = ip->addrs[bn]) == 0)
       ip->addrs[bn] = addr = balloc(ip->dev);
     return addr;
   }
   bn -= NDIRECT;
 
-  if(bn < NINDIRECT){
+  if (bn < NINDIRECT) { // singly-indirect block
     // Load indirect block, allocating if necessary.
-    if((addr = ip->addrs[NDIRECT]) == 0)
+    if ((addr = ip->addrs[NDIRECT]) == 0)
       ip->addrs[NDIRECT] = addr = balloc(ip->dev);
-    bp = bread(ip->dev, addr);
+    bp = bread(ip->dev, addr); // read a locked block
+    a = (uint*)bp->data; // read the data
+    if((addr = a[bn]) == 0) { // read the address
+      a[bn] = addr = balloc(ip->dev); // allocate a block for it
+      log_write(bp); // write to the log
+    }
+    brelse(bp); // release the locked buffer
+    return addr;
+  }
+
+  bn -= NINDIRECT;
+  if (bn < NDBINDIRECT) { // if is a doubly-indirect no
+    if ((addr = ip->addrs[NDIRECT+1]) == 0)
+      ip->addrs[NDIRECT+1] = addr = balloc(ip->dev);
+
+    // belong to which group, if blockno is 255,
+    // its groupno: 255/256 = 0
+    uint groupno = bn / NINDIRECT; 
+    bp = bread(ip->dev, addr); // primary index
     a = (uint*)bp->data;
-    if((addr = a[bn]) == 0){
-      a[bn] = addr = balloc(ip->dev);
+    if((addr = a[groupno]) == 0) {
+      a[groupno] = addr = balloc(ip->dev);
       log_write(bp);
     }
     brelse(bp);
+
+    // inner group no, if blockno is 255,
+    // its inner group no: 255%255 = 0,
+    // that is the first index in the block
+    uint innerno = bn % NINDIRECT;
+    bp = bread(ip->dev, addr); // secondary index
+    a = (uint*)bp->data;
+    if((addr = a[innerno]) == 0) {
+      a[innerno] = addr = balloc(ip->dev);
+      log_write(bp);
+    }
+    brelse(bp);
+
     return addr;
   }
 
@@ -430,6 +461,27 @@ itrunc(struct inode *ip)
     brelse(bp);
     bfree(ip->dev, ip->addrs[NDIRECT]);
     ip->addrs[NDIRECT] = 0;
+  }
+
+  struct buf *bbp;
+  uint *b;
+  if (ip->addrs[NDIRECT+1]) {
+    bp = bread(ip->dev, ip->addrs[NDIRECT+1]);
+    a = (uint*)bp->data;
+    for (j = 0; j < NINDIRECT; j++) {
+      if(a[j]) {
+        bbp = bread(ip->dev, a[j]);
+        b = (uint*)bbp->data;
+        for (i = 0; i < NINDIRECT; i++) {
+          if (b[i]) {
+            bfree(ip->dev, b[i]);
+          }
+        }
+        brelse(bbp);
+        bfree(ip->dev, a[j]);
+      }
+    }
+    brelse(bp);
   }
 
   ip->size = 0;
