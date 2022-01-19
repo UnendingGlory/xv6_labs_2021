@@ -116,6 +116,7 @@ sys_fstat(void)
 }
 
 // Create the path new as a link to the same inode as old.
+// hard link
 uint64
 sys_link(void)
 {
@@ -238,6 +239,7 @@ bad:
   return -1;
 }
 
+// major/minor for device file
 static struct inode*
 create(char *path, short type, short major, short minor)
 {
@@ -295,9 +297,9 @@ sys_open(void)
   if((n = argstr(0, path, MAXPATH)) < 0 || argint(1, &omode) < 0)
     return -1;
 
-  begin_op();
+  begin_op(); // wait for logging block
 
-  if(omode & O_CREATE){
+  if(omode & O_CREATE){ // use open to create a file
     ip = create(path, T_FILE, 0, 0);
     if(ip == 0){
       end_op();
@@ -308,8 +310,8 @@ sys_open(void)
       end_op();
       return -1;
     }
-    ilock(ip);
-    if(ip->type == T_DIR && omode != O_RDONLY){
+    ilock(ip); // lock ip here
+    if(ip->type == T_DIR && omode != O_RDONLY){  // DIR and read only
       iunlockput(ip);
       end_op();
       return -1;
@@ -322,6 +324,46 @@ sys_open(void)
     return -1;
   }
 
+  // if open a symlink file
+  // and not directly open the link file
+  if (ip->type == T_SYMLINK && !(omode & O_NOFOLLOW)) {
+    // need to recursively find until a no link file is found
+    int cnt = 0, maxdepth = 10;
+    char found[MAXPATH];
+    struct inode *iptr;
+    for (; cnt < maxdepth; ++cnt) {
+      if (cnt) { // if cnt = 0, ip has been locked at line 313
+        ilock(ip);
+      }
+      
+      if (readi(ip, 0, (uint64)found, 0U, MAXPATH) != MAXPATH) {
+        iunlock(ip);
+        end_op();
+        return -1;
+      }
+      iunlockput(ip);
+      
+      // get the inode for the path
+      if ((iptr = namei(found)) == 0) {
+        end_op();
+        return -1;
+      }
+
+      ip = iptr;
+      if (iptr->type != T_SYMLINK) {
+        break;
+      }
+    }
+
+    if (cnt == maxdepth) {
+      end_op();
+      return -1;
+    } 
+    
+    ilock(ip); // pair with the following
+  } // else directly return the created fd for the file
+
+ // open allocate a fd for the file
   if((f = filealloc()) == 0 || (fd = fdalloc(f)) < 0){
     if(f)
       fileclose(f);
@@ -482,5 +524,40 @@ sys_pipe(void)
     fileclose(wf);
     return -1;
   }
+  return 0;
+}
+
+// soft(or symbolic) link
+uint64
+sys_symlink(void)
+{
+  char target[MAXPATH], path[MAXPATH];
+
+  if (argstr(0, target, MAXPATH) < 0 || argstr(1, path, MAXPATH) < 0) {
+    return -1;
+  }
+
+  struct inode *ip;
+  begin_op();
+
+  // if the inode is empty
+  if ((ip = namei(path)) == 0) {
+    // create the inode
+    ip = create(path, T_SYMLINK, 0, 0);
+    iunlock(ip);  // remeber to unlock the lock in create
+  }
+
+  ilock(ip);
+  // write into the beginning of the inode's data block
+  // 2nd arg: kernel address
+  if (writei(ip, 0, (uint64)target, 0U, sizeof(target)) != sizeof(target)) {
+    iunlock(ip);
+    end_op(); 
+    return -1;
+  }
+  iunlockput(ip); // writei add a reference, drop a reference
+
+  end_op();
+
   return 0;
 }

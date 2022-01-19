@@ -546,6 +546,7 @@ writei(struct inode *ip, int user_src, uint64 src, uint off, uint n)
   if(off + n > MAXFILE*BSIZE)
     return -1;
 
+  // off: offset to write
   for(tot=0; tot<n; tot+=m, off+=m, src+=m){
     bp = bread(ip->dev, bmap(ip, off/BSIZE));
     m = min(n - tot, BSIZE - off%BSIZE);
@@ -686,7 +687,7 @@ namex(char *path, int nameiparent, char *name)
     ip = iget(ROOTDEV, ROOTINO);
   else
     ip = idup(myproc()->cwd);
-
+  // printf("namex");
   while((path = skipelem(path, name)) != 0){
     ilock(ip);
     if(ip->type != T_DIR){
